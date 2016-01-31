@@ -3,7 +3,12 @@
 __author__ = 'Sergey Sobko'
 
 
-from pandas import read_csv
+from pandas import (
+    concat,
+    read_csv,
+    Series
+)
+from sklearn.tree import DecisionTreeClassifier
 
 
 class Titanic(object):
@@ -31,9 +36,10 @@ class Titanic(object):
 
     @property
     def std_and_mean_for_age(self):
+        ages = self.titanic_data['Age'].dropna()
         return '{0:.2f} {1:.2f}'.format(
-            self.titanic_data['Age'].std(),
-            self.titanic_data['Age'].mean()
+            ages.mean(),
+            ages.median()
         )
 
     @property
@@ -62,3 +68,17 @@ class Titanic(object):
         return self.titanic_data.groupby(
                 self.titanic_data[self.titanic_data.Sex == 'female']['Name'].apply(self._get_first_name)
             ).count().idxmax().Name
+
+    @property
+    def survival_criteria(self):
+        values = self.titanic_data[['Pclass', 'Fare', 'Age', 'Sex', 'Survived']].dropna()
+        values['IsMale'] = values.Sex == 'male'
+
+        clf = DecisionTreeClassifier(random_state=241)
+        clf.fit(values[['Pclass', 'Fare', 'Age', 'IsMale']], values['Survived'])
+
+        criteria = concat([
+            Series(['Pclass', 'Fare', 'Age', 'Sex']),
+            Series(clf.feature_importances_)
+        ], axis=1).sort_values(by=1, ascending=False)[:2][0]
+        return ' '.join(criteria)
